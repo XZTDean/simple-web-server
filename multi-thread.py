@@ -65,7 +65,6 @@ def process_request(data):
     except IOError:
         return response_header_400()
     if not_modified_since(header, modify_time):
-        print("return 304")
         return response_header_304()
     response_header = response_header_200(len(content), modify_time)
     return response_header + content
@@ -87,22 +86,18 @@ def handle_conn(conn):
     conn.settimeout(30)  # TCP connection will timeout in 30 seconds
     while True:
         try:
-            print("enter recv part")
             data = conn.recv(1024)
-            print(data)
             if len(data) == 0:
                 break
             response = process_request(data)
             conn.sendall(response)
-            print("sent")
         except timeout:
             conn.sendall(response_header_408())
-            print(408)
             break
         except:
             break
+    print("Close Connection with ", conn.getpeername())
     conn.close()
-    print("Closed")
 
 
 def start():
@@ -111,9 +106,9 @@ def start():
     s.listen(5)
     while True:
         (connection, address) = s.accept()
+        print("Establish Connection with Address: ", address)
         t = threading.Thread(target=handle_conn, args=(connection,))
         t.start()
-        print("Wait for new connection!")
 
 
 start()
