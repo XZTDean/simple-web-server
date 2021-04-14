@@ -20,7 +20,8 @@ def response_header_200(length, modify_time):
 
 
 def response_header_304():
-    pass
+    return b'HTTP/1.1 304 Not Modified\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode()\
+           + b'\r\nCache-Control: no-cache\r\n\r\n'
 
 
 def response_header_400():
@@ -35,6 +36,17 @@ def response_header_408():
     pass
 
 
+def not_modified_since(header, modify_time):
+    for line in header:
+        if 'If-Modified-Since:' in line:
+            time_str = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(modify_time))
+            if time_str in line:
+                return True
+            else:
+                return False
+    return False
+
+
 def process_request(data):
     request = data.decode()
     header_end = request.find('\r\n\r\n')
@@ -44,7 +56,13 @@ def process_request(data):
     req_info = header[0].split(' ')
     if 'HTTP' not in req_info[2] or wrong_request_method(req_info[0]):
         raise BadRequest
-    content, modify_time = file_handle(req_info[1])
+    try:
+        content, modify_time = file_handle(req_info[1])
+    except FileNotFoundError:
+        return response_header_404()
+    if not_modified_since(header, modify_time):
+        print("return 304")
+        return response_header_304()
     response_header = response_header_200(len(content), modify_time)
     return response_header + content
 
@@ -60,7 +78,7 @@ def file_handle(path):
 
 
 def handle_conn(conn):
-    conn.settimeout(30)
+    conn.settimeout(30)  # TCP connection will timeout in 30 seconds
     while True:
         try:
             print("enter recv part")
@@ -72,14 +90,15 @@ def handle_conn(conn):
         except:
             break
     conn.close()
-#b'HTTP/1.1 200 OK\r\ncache-control: public, max-age=7200\r\nContent-Length: 12\r\nConnection: Keep-Alive\r\nContent-Type: text/plain;charset=UTF-8\r\n\r\nHello World!\r\n'
+
 
 def start():
     s = socket(AF_INET, SOCK_STREAM)
     s.bind(('', 80))
     s.listen(5)
-    (connection, address) = s.accept()
-    handle_conn(connection)
+    while True:
+        (connection, address) = s.accept()
+        handle_conn(connection)
 
 
 start()
