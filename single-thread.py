@@ -1,11 +1,6 @@
 from socket import *
-import struct
 import time
 import os
-
-
-class BadRequest(Exception):
-    pass
 
 
 def wrong_request_method(method: str) -> bool:
@@ -38,9 +33,8 @@ def response_header_404():
 
 
 def response_header_408():
-    return b'HTTP/1.1 408 Request Timeout\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT",
-                                                                     time.gmtime()).encode() \
-           + b'\r\nConnection: close\r\nCache-Control: no-cache\r\n\r\n'
+    return b'HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n' \
+           b'Date: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode() + b'\r\n\r\n'
 
 
 def not_modified_since(header, modify_time):
@@ -67,6 +61,8 @@ def process_request(data):
         content, modify_time = file_handle(req_info[1])
     except FileNotFoundError:
         return response_header_404()
+    except IOError:
+        return response_header_400()
     if not_modified_since(header, modify_time):
         print("return 304")
         return response_header_304()
@@ -76,6 +72,8 @@ def process_request(data):
 
 def file_handle(path):
     file_dir = path[1:]
+    if path == '/':
+        file_dir = 'index.html'
     file_stats = os.stat(file_dir)
     modify_time = file_stats.st_mtime
     file = open(file_dir, "rb")
