@@ -14,14 +14,14 @@ def wrong_request_method(method: str) -> bool:
 
 
 def response_header_200(length, modify_time):
-    return b'HTTP/1.1 200 OK\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode()\
-             + b'\r\nConnection: keep-alive\r\nContent-Length: ' + str(length).encode() + b'\r\nCache-Control: '\
-             + b'no-cache\r\nLast-Modified: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT",
-                                                              time.gmtime(modify_time)).encode() + b'\r\n\r\n'
+    return b'HTTP/1.1 200 OK\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode() \
+           + b'\r\nConnection: keep-alive\r\nContent-Length: ' + str(length).encode() + b'\r\nCache-Control: ' \
+           + b'no-cache\r\nLast-Modified: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT",
+                                                            time.gmtime(modify_time)).encode() + b'\r\n\r\n'
 
 
 def response_header_304():
-    return b'HTTP/1.1 304 Not Modified\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode()\
+    return b'HTTP/1.1 304 Not Modified\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode() \
            + b'\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\n'
 
 
@@ -33,12 +33,13 @@ def response_header_400():
 
 def response_header_404():
     return b'HTTP/1.1 404 Not Found\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode() \
-           + b'\r\nConnection: keep-alive\r\nCache-Control: no-cache\r\nContent-Length: 13\r\n'\
+           + b'\r\nConnection: keep-alive\r\nCache-Control: no-cache\r\nContent-Length: 13\r\n' \
            + b'Content-Type: text/plain; charset=utf-8\r\n\r\n404 Not Found'
 
 
 def response_header_408():
-    return b'HTTP/1.1 408 Request Timeout\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()).encode() \
+    return b'HTTP/1.1 408 Request Timeout\r\nDate: ' + time.strftime("%a, %d %b %Y %H:%M:%S GMT",
+                                                                     time.gmtime()).encode() \
            + b'\r\nConnection: close\r\nCache-Control: no-cache\r\n\r\n'
 
 
@@ -57,12 +58,11 @@ def process_request(data):
     request = data.decode()
     header_end = request.find('\r\n\r\n')
     if header_end <= 0:
-        print('EMPTY')
-        raise BadRequest
+        return response_header_400()
     header = request[:header_end].split('\r\n')
     req_info = header[0].split(' ')
     if 'HTTP' not in req_info[2] or wrong_request_method(req_info[0]):
-        raise BadRequest
+        return response_header_400()
     try:
         content, modify_time = file_handle(req_info[1])
     except FileNotFoundError:
@@ -91,13 +91,19 @@ def handle_conn(conn):
             print("enter recv part")
             data = conn.recv(1024)
             print(data)
-            # if len(data) > 0:
+            if len(data) == 0:
+                break
             response = process_request(data)
             conn.sendall(response)
             print("sent")
+        except timeout:
+            conn.sendall(response_header_408())
+            print(408)
+            break
         except:
             break
     conn.close()
+    print("Closed")
 
 
 def start():
